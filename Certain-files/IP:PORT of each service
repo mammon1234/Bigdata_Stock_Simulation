@@ -1,0 +1,5 @@
+docker machine Ip:192.168.99.100
+kafka: docker machine Ip:9092
+cassandra: docker machine Ip:9042
+zookeeper:docker machine Ip:2181
+redis: docker machine Ip:6379
