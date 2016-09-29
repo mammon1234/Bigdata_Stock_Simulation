@@ -1,0 +1,99 @@
+zookeeper
+docker run -d -p 2181:2181 -p 2888:2888 -p 3888:3888 --name zookeeper confluent/zookeeper
+//在zookeeper的客户端下运行如下命令可以进入zookeeper cli
+//转入zookeeper/bin文件夹下
+● cd zookeeper/bin (MacOS, Linux, Unix)
+● ./zkCli.sh -server `docker-machine ip bigdata`:2181
+// 查询zookeeper下的文件,zookeeper 每次需要输入完整路径
+● ls /
+● ls /zookeeper
+● get /zookeeper/quota
+//创建znode data
+● create /workers "bittiger"
+● ls /
+● ls /workers
+● get /workers
+// 删除znode data
+● delete /workers
+● ls /
+● ls /workers
+● get /workers
+当zookeeper断开连接后，所生成的文件也会消失quit
+
+watcher机制，
+get /workers true
+当文件改变后，其他客户端都会受到通知
+
+
+//启动cassandra
+docker run -d -p 7199:7199 -p 9042:9042 -p 9160:9160 -p 7001:7001 --name cassandra
+cassandra:3.7
+● docker images
+● docker ps
+//cd cassandra文件夹的bin文件
+./cqlsh `docker-machine ip bigdata` 9042(Mac, Linux, Unix)
+
+//cassandra建立后需要首先新建一个keyspace，也就是一个类似数据库的概念
+● ./cqlsh `docker-machine ip bigdata` 9042
+● CREATE KEYSPACE “stock” WITH replication = {'class': 'SimpleStrategy', 'replication_factor':
+1} AND durable_writes = 'true';
+//查看stock信息
+● DESCRIBE KEYSPACE stock;
+或者
+● USE stock;
+● DESCRIBE KEYSPACE；
+//cassandra之前的版本也属于松散记录，但是发现不利于客户端理解，也学习sql的用法
+● ./cqlsh `docker-machine ip bigdata` 9042
+//每个table都必须有primary key
+● CREATE TABLE user ( first_name text, last_name text, PRIMARY KEY (first_name));
+● DESCRIBE TABLE user;
+
+插入数据
+● ./cqlsh `docker-machine ip bigdata` 9042
+● INSERT INTO user (first_name, last_name) VALUES ('uncle', 'barney');
+查询数据
+● SELECT COUNT (*) FROM USER;
+● SELECT * FROM user WHERE first_name='uncle';
+● SELECT * FROM user WHERE last_name='barney';//这条会报错，因为cassandra只能通过primary key查询
+//查询cassandra内部结构,cassandra收到消息第一步是写到commitlog里面 ,正式数据放在data文件夹
+● docker exec -it cassandra bash
+● cd /var/lib/cassandra
+● ls
+返回exit
+
+删除数据
+● ./cqlsh `docker-machine ip bigdata` 9042
+● DELETE last_name FROM user WHERE first_name='uncle';
+● DELETE FROM user WHERE first_name='uncle';
+删除TABLE
+● ./cqlsh `docker-machine ip bigdata` 9042
+● TRUNCATE user;
+● DROP TABLE user;
+
+启动kafka
+● docker run -d -p 9092:9092 -e KAFKA_ADVERTISED_HOST_NAME=`docker-machine ip bigdata` -e
+KAFKA_ADVERTISED_PORT=9092 --name kafka --link zookeeper:zookeeper confluent/kafka
+● docker images
+● docker ps
+
+//创建kafka topic 根据需求备份数量.不需要告诉broker ip 但需要zookeeper的ip
+● ./kafka-topics.sh --create --zookeeper `docker-machine ip bigdata` --replication-factor 1
+--partitions 1 --topic bigdata
+//查看kafka下面有哪些list
+● ./kafka-topics.sh --list --zookeeper `docker-machine ip bigdata`
+//kafka producer
+● (MacOS, Unix, Linux)
+● ./kafka-console-producer.sh --broker-list `docker-machine ip bigdata`:9092 --topic bigdata
+//kafka consumer
+● (MacOS, Unix, Linux)
+● ./kafka-console-consumer.sh --zookeeper `docker-machine ip bigdata`:2181 --topic bigdata
+● ./kafka-console-consumer.sh --zookeeper `docker-machine ip bigdata`:2181 --topic bigdata
+--from-beginning
+退出返回terminal ctrl+c
+//查看KAFKA内部结构，KAFKA相当于一个系统
+● docker exec -it kafka bash
+//默认存放文件位置
+● cd /var/lib/kafka
+● ls
+//返回exit
+//内容在log中。先存数据长度， MagicByte（表示消息格式的版本） crc校验和
